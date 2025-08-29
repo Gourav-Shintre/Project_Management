@@ -9,6 +9,8 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 //   } catch (error) {}
 // };
 
+
+//we dont need to write try catch block evry time for that we use HOF
 const healtCheck = asyncHandler(async (req, res) => {
   res
   .status(200)
