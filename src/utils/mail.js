@@ -1,7 +1,48 @@
+import { text } from "express";
 import Mailgen from "mailgen";
 import nodemailer from "nodemailer";
 
-const 
+const sendEmail = async (options) => {
+  const mailGenerator = new Mailgen({
+    theme: "default",
+    product: {
+      name: "Task Manager",
+      link: "https://task-manager.com/",
+    },
+  });
+  // Generate an HTML email with the provided content
+  const emailText = mailGenerator.generatePlaintext(options.mailgenContent);
+
+  //this is used when it supports html email so we use generate
+  const emailHtml = mailGenerator.generate(options.mailgenContent);
+
+  // Create a transporter object using SMTP transport
+  const transporter = nodemailer.createTransport({
+    host: process.env.MAILTRAP_SMTP_HOST,
+    port: process.env.MAILTRAP_SMTP_PORT,
+    auth: {
+      user: process.env.MAILTRAP_SMTP_USER,
+      pass: process.env.MAILTRAP_SMTP_PASS,
+    },
+  });
+
+  // Define the email options
+  const mail = {
+    from: "gouravshintre002@gmail.com",
+    to: options.email,
+    subject: options.subject,
+    text: emailText,
+    html: emailHtml,
+  };
+
+  // Send the email
+  try {
+    await transporter.sendMail(mail);
+  } catch (error) {
+    console.error("Error sending email:", error);
+    throw new Error("Email could not be sent");
+  }
+};
 
 const emailVerificationMailgenContent = (username, verificationUrl) => {
   return {
@@ -12,7 +53,7 @@ const emailVerificationMailgenContent = (username, verificationUrl) => {
         instructions: "To get started with App, please click here:",
         button: {
           color: "#22BC66", // Optional action button color
-          text: "Confirm your account",
+          text: "Verify your email",
           link: verificationUrl,
         },
       },
@@ -47,4 +88,5 @@ const forgotPasswordVerificationMailgenContent = (
 export {
   emailVerificationMailgenContent,
   forgotPasswordVerificationMailgenContent,
+  sendEmail
 };
