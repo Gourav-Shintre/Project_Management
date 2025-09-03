@@ -89,7 +89,8 @@ const registerUser = asyncHandler(async (req, res) => {
 
 //function for login
 
-const login = asyncHandler(async (req, res) => {
+const loginUser = asyncHandler(async (req, res) => {
+
   const { email, username, password } = req.body;
 
   if (!username || !email) {
@@ -138,4 +139,13 @@ const login = asyncHandler(async (req, res) => {
     );
 });
 
-export { registerUser, login };
+//function for logout
+
+const logoutUser = asyncHandler(async (req, res) => {
+
+  // req.user._id we will get this from the verifyJWT middleware check middle ware we are sending in the route
+  const user = await User.findByIdAndUpdate( req.user._id);
+
+});
+
+export { registerUser, loginUser, logoutUser };
