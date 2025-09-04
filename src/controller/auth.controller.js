@@ -90,7 +90,6 @@ const registerUser = asyncHandler(async (req, res) => {
 //function for login
 
 const loginUser = asyncHandler(async (req, res) => {
-
   const { email, username, password } = req.body;
 
   if (!username || !email) {
@@ -142,10 +141,85 @@ const loginUser = asyncHandler(async (req, res) => {
 //function for logout
 
 const logoutUser = asyncHandler(async (req, res) => {
-
   // req.user._id we will get this from the verifyJWT middleware check middle ware we are sending in the route
-  const user = await User.findByIdAndUpdate( req.user._id);
+  const user = await User.findByIdAndUpdate(
+    //it will find the user by id and update it
+    req.user._id,
+    {
+      //this is used to set the value of a field in the document
+      $set: {
+        refreshToken: "",
+      },
+    },
+    {
+      //it give the latest object or document
+      new: true,
+    }
+  );
 
+  const options = {
+    httpOnly: true,
+    secure: true,
+  };
+
+  return res
+    .status(200)
+    .clearCookie("accessToken", options)
+    .clearCookie("refreshToken", options)
+    .json(new ApiResponse(200, {}, "User logged out successfully"));
 });
 
-export { registerUser, loginUser, logoutUser };
+//function to get current user details
+const getCurrentUser = asyncHandler(async (req, res) => {
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(
+        200,
+        { user: req?.user },
+        "Current user details fetched successfully"
+      )
+    );
+});
+
+//function for email verification
+const verifyEmail = asyncHandler(async (req, res) => {
+  const { verificationToken } = req?.params; //we can get data from params
+  if (!verificationToken) {
+    throw new ApiError(400, "Email Verification token is missing");
+  }
+
+  //crypto is a module in node js which is used to create hashes
+  const hasedToken = crypto
+    .createHash("sha256") //sha256 is a hashing algorithm
+    .update(verificationToken) //update method is used to update the data for hashing
+    .digest("hex"); //digest method is used to convert the data into hexadecimal format
+
+  const user = await User.findOne({
+    emailVerificationToken: hasedToken,
+    emailVerificationExpiry: {
+      $gt: Date.now(), //it means the token is not expired it will check the token expiry is greater than current time
+    },
+  });
+
+  if (!user) {
+    throw new ApiError(400, " Token is Invalid or Expired");
+  }
+
+  user.emailVerificationToken = undefined;
+  user.emailVerificationExpiry = undefined;
+  user.isEmailVerified = true;
+  await user.save({ validateBeforeSave: false });
+
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(
+        200,
+        { isEmailVerified: true },
+        "Email is verified successfully"
+      )
+    );
+});
+
+export { registerUser, loginUser, logoutUser, getCurrentUser, verifyEmail };
