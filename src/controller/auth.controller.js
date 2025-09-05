@@ -1,9 +1,16 @@
+import { verifyJWT } from "../middlewares/auth.middleware.js";
 import { User } from "../models/user.model.js";
 import { ApiError } from "../utils/apiError.js";
 import { ApiResponse } from "../utils/apiResponse.js";
 
 import { asyncHandler } from "../utils/asyncHandler.js";
-import { emailVerificationMailgenContent, sendEmail } from "../utils/mail.js";
+import {
+  emailVerificationMailgenContent,
+  forgotPasswordVerificationMailgenContent,
+  sendEmail,
+} from "../utils/mail.js";
+import jwt from "jsonwebtoken";
+
 //function to generate access and refresh token
 const generateAccessAndRefreshToken = async (userId) => {
   try {
@@ -262,6 +269,82 @@ const resendEmailVerificationEmail = asyncHandler(async (req, res) => {
     );
 });
 
+//to generate access token with refresh token
+const refreshAccessToken = asyncHandler(async (req, res) => {
+  const incomingRefreshToken =
+    req?.cookies?.refreshToken || req?.body?.refreshToken;
+
+  if (!incomingRefreshToken) {
+    throw new ApiError(400, "Refresh token is required");
+  }
+
+  try {
+    const decodedRefreshToken = jwt.verify(
+      incomingRefreshToken,
+      process.env.REFRESH_TOKEN_SECRET
+    );
+    const user = await User.findById(decodedRefreshToken?._id);
+    if (!user) {
+      throw new ApiError(401, "Invalid refresh token , user not found");
+    }
+    if (incomingRefreshToken !== user?.refreshToken) {
+      throw new ApiError(401, " Refresh Token is expired");
+    }
+    const options = {
+      httpOnly: true,
+      secure: true,
+    };
+
+    const { accessToken, refreshToken: newRefreshToken } =
+      await generateAccessAndRefreshToken(user?._id);
+
+    await user?.save({ validateBeforeSave: true });
+
+    res
+      .status(200)
+      .cookie("accessToken", accessToken, options)
+      .cookie("refreshToken", newRefreshToken, options)
+      .json(
+        new ApiResponse(
+          200,
+          { accessToken, refreshToken: newRefreshToken },
+          "Access Token Refreshed"
+        )
+      );
+  } catch (error) {
+    throw new ApiError(401, "Invalid or expired refresh token");
+  }
+});
+
+//function for forgot password
+const forgotPasswordRequest = asyncHandler(async (req, res) => {
+  const { email } = req?.body;
+
+  const user = await User?.findOne({ email });
+
+  if (!user) {
+    throw new ApiError(404, "User not found");
+  }
+
+  const { hashedToken, unHashedToken, tokenExpiry } =
+    user.generateRefreshToken();
+
+  await user.save({ validateBeforeSave: true });
+
+  await sendEmail({
+    email,
+    subject: "Password reset request",
+    mailgenContent: forgotPasswordVerificationMailgenContent(
+      user?.username,
+      `${process.env.FORGOT_PASSWORD_URL}/?token=${unHashedToken}`
+    ),
+  });
+
+  res
+    .status(200)
+    .json(new ApiResponse(200, {}, "Password reset link sent to your email"));
+});
+
 export {
   registerUser,
   loginUser,
@@ -269,4 +352,6 @@ export {
   getCurrentUser,
   verifyEmail,
   resendEmailVerificationEmail,
+  refreshAccessToken,
+  forgotPasswordRequest,
 };
