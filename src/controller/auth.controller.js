@@ -222,4 +222,51 @@ const verifyEmail = asyncHandler(async (req, res) => {
     );
 });
 
-export { registerUser, loginUser, logoutUser, getCurrentUser, verifyEmail };
+//function for resend email verification
+const resendEmailVerificationEmail = asyncHandler(async (req, res) => {
+  const user = await User.findById(req?.user?._id);
+  if (!user) {
+    throw new ApiError(404, "User not found");
+  }
+
+  if (user?.isEmailVerified) {
+    throw new ApiError(409, "Email is already verified");
+  }
+
+  const { unHashedToken, hasedToken, tokenExpiry } =
+    user.generateTemporaryToken();
+
+  user.emailVerificationToken = hashedToken;
+  user.emailVerificationExpiry = tokenExpiry;
+
+  await user.save({ validateBeforeSave: false });
+  await sendEmail({
+    email: user?.email,
+    subject: "Please verify your email",
+    mailgenContent: emailVerificationMailgenContent(
+      user?.username,
+
+      //   http://localhost:5000/api/v1/users/login example of req.protocol and req.get("host") protocol is http and host is localhost:5000
+      `${req.protocol}://${req.get("host")}/api/v1/users/verify-email?token=${unHashedToken}`
+    ),
+  });
+
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(
+        200,
+        {},
+        "Email verification link is sent to your email address"
+      )
+    );
+});
+
+export {
+  registerUser,
+  loginUser,
+  logoutUser,
+  getCurrentUser,
+  verifyEmail,
+  resendEmailVerificationEmail,
+};
