@@ -34,7 +34,6 @@ const generateAccessAndRefreshToken = async (userId) => {
 };
 
 // function to register user
-
 const registerUser = asyncHandler(async (req, res) => {
   const { email, username, password, role } = req.body;
 
@@ -95,7 +94,6 @@ const registerUser = asyncHandler(async (req, res) => {
 });
 
 //function for login
-
 const loginUser = asyncHandler(async (req, res) => {
   const { email, username, password } = req.body;
 
@@ -146,7 +144,6 @@ const loginUser = asyncHandler(async (req, res) => {
 });
 
 //function for logout
-
 const logoutUser = asyncHandler(async (req, res) => {
   // req.user._id we will get this from the verifyJWT middleware check middle ware we are sending in the route
   const user = await User.findByIdAndUpdate(
@@ -345,6 +342,18 @@ const forgotPasswordRequest = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, {}, "Password reset link sent to your email"));
 });
 
+// function for reset passowrd
+const resetpassword = asyncHandler(async (req, res) => {
+  const { resetToken } = req?.params;
+  const { newPassword } = req?.body;
+
+  let hashedToken = crypto.createHash("sha256").update(resetToken).digest("hex");
+
+  await User?.findOne({
+    forgotPasswordToken: hashedToken,
+    // forgotPasswordExpiry: { $gt: Date.now() }
+  });
+});
 export {
   registerUser,
   loginUser,
@@ -354,4 +363,5 @@ export {
   resendEmailVerificationEmail,
   refreshAccessToken,
   forgotPasswordRequest,
+  resetpassword,
 };
