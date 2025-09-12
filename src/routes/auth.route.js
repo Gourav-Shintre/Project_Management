@@ -9,6 +9,7 @@ import {
   registerUser,
   resendEmailVerificationEmail,
   resetpassword,
+  updateUserRole,
   verifyEmail,
 } from "../controller/auth.controller.js";
 import { validate } from "../middlewares/validator.middleware.js";
@@ -20,6 +21,8 @@ import {
   userResetPasswordValidator,
 } from "../validators/index.js";
 import { verifyJWT } from "../middlewares/auth.middleware.js";
+import { authorizeRole } from "../middlewares/authorizeRole.middleware.js";
+import { UserRolesEnum } from "../utils/constants.js";
 const router = Router();
 
 //unsecured routes
@@ -49,5 +52,10 @@ router
 router
   .route("/resend-email-verification")
   .post(verifyJWT, resendEmailVerificationEmail);
+
+// for update role
+router
+  .route("/:id/update-role")
+  .patch(verifyJWT, authorizeRole(UserRolesEnum.MEMBER), updateUserRole);
 
 export default router;

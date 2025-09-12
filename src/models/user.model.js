@@ -2,7 +2,7 @@ import mongoose, { Schema } from "mongoose";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
-
+import { UserRolesEnum, AvailableUserRole } from "../utils/constants.js";
 const userSchema = new Schema(
   {
     avatar: {
@@ -54,6 +54,11 @@ const userSchema = new Schema(
     emailVerificationExpiry: {
       type: String,
     },
+    role: {
+      type: String,
+      enum: AvailableUserRole,
+      default: UserRolesEnum.MEMBER,
+    },
   },
   {
     timestamps: true,
@@ -75,10 +80,10 @@ userSchema.methods.generateAccessToken = function () {
   return jwt.sign(
     {
       _id: this._id,
-      email: this.email,
+      email: this.email, //payload
       username: this.username,
     },
-    process.env.ACCESS_TOKEN_SECRET,
+    process.env.ACCESS_TOKEN_SECRET, /// env file
     { expiresIn: process.env.ACCESS_TOKEN_EXPIRY }
   );
 };

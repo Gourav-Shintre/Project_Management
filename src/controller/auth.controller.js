@@ -4,6 +4,7 @@ import { ApiError } from "../utils/apiError.js";
 import { ApiResponse } from "../utils/apiResponse.js";
 
 import { asyncHandler } from "../utils/asyncHandler.js";
+import { AvailableUserRole, UserRolesEnum } from "../utils/constants.js";
 import {
   emailVerificationMailgenContent,
   forgotPasswordVerificationMailgenContent,
@@ -406,6 +407,28 @@ const changePassword = asyncHandler(async (req, res) => {
   return res
     .status(200)
     .json(new ApiResponse(200, {}, "password changed successfully"));
+// to update role of user
+const updateUserRole = asyncHandler(async (req, res) => {
+  const { id } = req?.params;
+  const { role } = req?.body;
+
+  if (!AvailableUserRole.includes(role)) {
+    throw new ApiError(400, "Invalid Role Provided");
+  }
+
+  const user = await User.findByIdAndUpdate(
+    id,
+    { role },
+    { new: true }
+  ).select("-password -refreshToken");
+
+  if (!user) {
+    throw new ApiError(404, "User not Found");
+  }
+
+  res
+    .status(200)
+    .json(new ApiResponse(200, user, "User Role Updated Successfully"));
 });
 
 export {
@@ -419,4 +442,5 @@ export {
   forgotPasswordRequest,
   resetpassword,
   changePassword,
+  updateUserRole,
 };
