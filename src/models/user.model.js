@@ -104,6 +104,8 @@ userSchema.methods.generateTemporaryToken = function () {
     .digest("hex");
 
   const tokenExpiry = Date.now() + 20 * 60 * 1000; //20minutes
+  this.forgotPasswordToken = hasedToken;
+  this.forgotPasswordExpiry = tokenExpiry;
   return { unHashedToken, hasedToken, tokenExpiry };
 };
 

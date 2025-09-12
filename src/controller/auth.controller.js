@@ -10,6 +10,8 @@ import {
   sendEmail,
 } from "../utils/mail.js";
 import jwt from "jsonwebtoken";
+import crypto from "crypto";
+import { log } from "console";
 
 //function to generate access and refresh token
 const generateAccessAndRefreshToken = async (userId) => {
@@ -237,7 +239,7 @@ const resendEmailVerificationEmail = asyncHandler(async (req, res) => {
     throw new ApiError(409, "Email is already verified");
   }
 
-  const { unHashedToken, hasedToken, tokenExpiry } =
+  const { unHashedToken, hashedToken, tokenExpiry } =
     user.generateTemporaryToken();
 
   user.emailVerificationToken = hashedToken;
@@ -317,14 +319,20 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
 const forgotPasswordRequest = asyncHandler(async (req, res) => {
   const { email } = req?.body;
 
-  const user = await User?.findOne({ email });
+  const user = await User?.findOne(
+    { email },
+    { forgotPasswordToken: 1, forgotPasswordExpiry: 1 }
+  );
+  console.log(user, "USER");
 
   if (!user) {
     throw new ApiError(404, "User not found");
   }
 
   const { hashedToken, unHashedToken, tokenExpiry } =
-    user.generateRefreshToken();
+    user.generateTemporaryToken();
+  console.log(hashedToken, "hashedToken");
+  console.log(unHashedToken, "unHashedToken");
 
   await user.save({ validateBeforeSave: true });
 
@@ -347,13 +355,59 @@ const resetpassword = asyncHandler(async (req, res) => {
   const { resetToken } = req?.params;
   const { newPassword } = req?.body;
 
-  let hashedToken = crypto.createHash("sha256").update(resetToken).digest("hex");
+  let hashedToken = crypto
+    .createHash("sha256")
+    .update(resetToken)
+    .digest("hex");
 
-  await User?.findOne({
+  const user = await User?.findOne({
     forgotPasswordToken: hashedToken,
-    // forgotPasswordExpiry: { $gt: Date.now() }
+    forgotPasswordExpiry: { $gt: Date.now() },
   });
+
+  if (!user) {
+    throw new ApiError(489, "Token is invalid or expired");
+  }
+
+  user.forgotPasswordExpiry = undefined;
+  user.forgotPasswordToken = undefined;
+  user.password = newPassword;
+
+  await user.save({ validateBeforeSave: false });
+
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(
+        200,
+        {},
+        "Password reset successfully, please login with your new password"
+      )
+    );
 });
+
+//function for change the passord
+const changePassword = asyncHandler(async (req, res) => {
+  const { oldPassword, newPassword } = req?.body;
+
+  //user is alredy authenticated we will get the user from the req.user which we set in the verifyJWT middleware
+  const user = await User.findById(req?.user?._id);
+
+  const isPasswordValid = await user.isPasswordCorrect(oldPassword);
+
+  if (!isPasswordValid) {
+    throw new ApiError(400, "Old password is incorrect");
+  }
+
+  user.password = newPassword;
+
+  await user.save({ validateBeforeSave: false });
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, {}, "password changed successfully"));
+});
+
 export {
   registerUser,
   loginUser,
@@ -364,4 +418,5 @@ export {
   refreshAccessToken,
   forgotPasswordRequest,
   resetpassword,
+  changePassword,
 };
