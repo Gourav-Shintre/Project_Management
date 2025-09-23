@@ -2,7 +2,6 @@ import { verifyJWT } from "../middlewares/auth.middleware.js";
 import { User } from "../models/user.model.js";
 import { ApiError } from "../utils/apiError.js";
 import { ApiResponse } from "../utils/apiResponse.js";
-
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { AvailableUserRole, UserRolesEnum } from "../utils/constants.js";
 import {
@@ -12,7 +11,6 @@ import {
 } from "../utils/mail.js";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
-import { log } from "console";
 
 //function to generate access and refresh token
 const generateAccessAndRefreshToken = async (userId) => {
@@ -57,10 +55,10 @@ const registerUser = asyncHandler(async (req, res) => {
     username,
   });
 
-  const { unHashedToken, hasedToken, tokenExpiry } =
+  const { unHashedToken, hashedToken, tokenExpiry } =
     user.generateTemporaryToken();
   //hashed token means it is encrypted version of unhashed token
-  user.emailVerificationToken = hasedToken;
+  user.emailVerificationToken = hashedToken;
   user.emailVerificationExpiry = tokenExpiry;
 
   await user.save({ validateBeforeSave: false });
@@ -72,7 +70,7 @@ const registerUser = asyncHandler(async (req, res) => {
       user?.username,
 
       //   http://localhost:5000/api/v1/users/login example of req.protocol and req.get("host") protocol is http and host is localhost:5000
-      `${req.protocol}://${req.get("host")}/api/v1/users/verify-email?token=${unHashedToken}`
+      `${req.protocol}://${req.get("host")}/api/v1/users/verify-email?${unHashedToken}`
     ),
   });
 
@@ -108,6 +106,10 @@ const loginUser = asyncHandler(async (req, res) => {
 
   if (!user) {
     throw new ApiError(400, "user doesn't exists");
+  }
+
+  if (!user?.isEmailVerified) {
+    throw new ApiError(400, "Please verify your email to login");
   }
 
   const isPasswordCorrect = await user.isPasswordCorrect(password);
@@ -195,19 +197,20 @@ const verifyEmail = asyncHandler(async (req, res) => {
   if (!verificationToken) {
     throw new ApiError(400, "Email Verification token is missing");
   }
-
   //crypto is a module in node js which is used to create hashes
-  const hasedToken = crypto
+  const hashedToken = crypto
     .createHash("sha256") //sha256 is a hashing algorithm
     .update(verificationToken) //update method is used to update the data for hashing
     .digest("hex"); //digest method is used to convert the data into hexadecimal format
+  console.log("Hashed Token:", hashedToken);
 
   const user = await User.findOne({
-    emailVerificationToken: hasedToken,
+    emailVerificationToken: hashedToken,
     emailVerificationExpiry: {
       $gt: Date.now(), //it means the token is not expired it will check the token expiry is greater than current time
     },
   });
+  console.log("User found:", user ? true : false);
 
   if (!user) {
     throw new ApiError(400, " Token is Invalid or Expired");
@@ -254,7 +257,7 @@ const resendEmailVerificationEmail = asyncHandler(async (req, res) => {
       user?.username,
 
       //   http://localhost:5000/api/v1/users/login example of req.protocol and req.get("host") protocol is http and host is localhost:5000
-      `${req.protocol}://${req.get("host")}/api/v1/users/verify-email?token=${unHashedToken}`
+      `${req.protocol}://${req.get("host")}/api/v1/users/verify-email?${unHashedToken}`
     ),
   });
 
@@ -342,7 +345,7 @@ const forgotPasswordRequest = asyncHandler(async (req, res) => {
     subject: "Password reset request",
     mailgenContent: forgotPasswordVerificationMailgenContent(
       user?.username,
-      `${process.env.FORGOT_PASSWORD_URL}/?token=${unHashedToken}`
+      `${process.env.FORGOT_PASSWORD_URL}/?${unHashedToken}`
     ),
   });
 
@@ -407,6 +410,7 @@ const changePassword = asyncHandler(async (req, res) => {
   return res
     .status(200)
     .json(new ApiResponse(200, {}, "password changed successfully"));
+});
 // to update role of user
 const updateUserRole = asyncHandler(async (req, res) => {
   const { id } = req?.params;
@@ -416,11 +420,9 @@ const updateUserRole = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Invalid Role Provided");
   }
 
-  const user = await User.findByIdAndUpdate(
-    id,
-    { role },
-    { new: true }
-  ).select("-password -refreshToken");
+  const user = await User.findByIdAndUpdate(id, { role }, { new: true }).select(
+    "-password -refreshToken"
+  );
 
   if (!user) {
     throw new ApiError(404, "User not Found");

@@ -9,7 +9,7 @@ app.use(urlencoded({ extended: true, limit: "16kb" })); //to d=encode the url da
 
 app.use(express.static("public")); // to show images publically from public folder
 
-app.use(cookieParser())
+app.use(cookieParser());
 
 //cors configuration
 app.use(
@@ -24,12 +24,14 @@ app.use(
 //routes
 import healthCheckRouter from "./routes/healthCheck.route.js";
 import authRouter from "./routes/auth.route.js";
+import projectRouter from "./routes/project.route.js";
 
 app.use("/api/v1/healthcheck", healthCheckRouter);
 app.use("/api/v1/auth", authRouter);
+app.use("/api/v1/project", projectRouter);
 
 app.get("/", (req, res) => {
-  res.send("hello welcome tomy page");
+  res.send("hello welcome to my page");
 });
 
 export default app;

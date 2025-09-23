@@ -1,4 +1,3 @@
-import { text } from "express";
 import Mailgen from "mailgen";
 import nodemailer from "nodemailer";
 
@@ -20,6 +19,7 @@ const sendEmail = async (options) => {
   const transporter = nodemailer.createTransport({
     host: process.env.MAILTRAP_SMTP_HOST,
     port: process.env.MAILTRAP_SMTP_PORT,
+    secure : true, // true for 465, false for other ports
     auth: {
       user: process.env.MAILTRAP_SMTP_USER,
       pass: process.env.MAILTRAP_SMTP_PASS,
@@ -28,7 +28,7 @@ const sendEmail = async (options) => {
 
   // Define the email options
   const mail = {
-    from: "gouravshintre002@gmail.com",
+    from: "gouravshintre02@gmail.com",
     to: options.email,
     subject: options.subject,
     text: emailText,
@@ -38,6 +38,8 @@ const sendEmail = async (options) => {
   // Send the email
   try {
     await transporter.sendMail(mail);
+    console.log("email sent successfully",options.email);
+    
   } catch (error) {
     console.error("Error sending email:", error);
     throw new Error("Email could not be sent");

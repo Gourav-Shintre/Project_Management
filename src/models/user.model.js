@@ -103,15 +103,17 @@ userSchema.methods.generateRefreshToken = function () {
 //temp tokens  used to verify users or for forgot password email verification
 userSchema.methods.generateTemporaryToken = function () {
   const unHashedToken = crypto.randomBytes(20).toString("hex");
-  const hasedToken = crypto
+  const hashedToken = crypto
     .createHash("sha256")
     .update(unHashedToken)
     .digest("hex");
 
   const tokenExpiry = Date.now() + 20 * 60 * 1000; //20minutes
-  this.forgotPasswordToken = hasedToken;
+  this.forgotPasswordToken = hashedToken;
   this.forgotPasswordExpiry = tokenExpiry;
-  return { unHashedToken, hasedToken, tokenExpiry };
+  this.emailVerificationToken = hashedToken;
+  this.emailVerificationExpiry = tokenExpiry;
+  return { unHashedToken, hashedToken, tokenExpiry };
 };
 
 export const User = mongoose.model("User", userSchema);
