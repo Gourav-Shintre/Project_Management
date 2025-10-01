@@ -25,10 +25,13 @@ app.use(
 import healthCheckRouter from "./routes/healthCheck.route.js";
 import authRouter from "./routes/auth.route.js";
 import projectRouter from "./routes/project.route.js";
+import { errorHandler } from "./middlewares/error.middleware.js";
 
 app.use("/api/v1/healthcheck", healthCheckRouter);
 app.use("/api/v1/auth", authRouter);
 app.use("/api/v1/project", projectRouter);
+
+app.use(errorHandler);
 
 app.get("/", (req, res) => {
   res.send("hello welcome to my page");
